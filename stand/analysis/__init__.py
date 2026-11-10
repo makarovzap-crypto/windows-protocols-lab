@@ -27,10 +27,10 @@ PORT_MAP = {
 # Фильтры отображения Wireshark для протоколов стенда.
 WIRESHARK_FILTERS = {
     "SMB": "smb2 || smb || ntlmssp",
-    "WebDAV": 'http.request.method in {"PROPFIND" "MKCOL" "PUT" "LOCK" "DELETE"} || http.response.code == 207',
+    "WebDAV": 'http.request.method in {"PROPFIND", "MKCOL", "PUT", "LOCK", "DELETE"} || http.response.code == 207',
     "LDAP": "ldap || tcp.port == 636",
     "RDP": "tpkt || rdp || tcp.port == 3389",
-    "WinRM / PSRP": 'tcp.port in {5985 5986} && (http || tls)',
+    "WinRM / PSRP": 'tcp.port in {5985, 5986} && (http || tls)',
     "WMI (DCOM/RPC)": "dcerpc || epm || dcom",
     "Учётные данные": 'http.authorization || ldap.simple || ntlmssp.messagetype == 3',
     "TLS": "tls.handshake",
