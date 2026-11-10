@@ -4,7 +4,8 @@
     python main.py run       – запустить стенд, записать трафик и проанализировать его;
     python main.py analyze F – проанализировать готовый файл захвата F (.pcap/.pcapng),
                                например сохранённый в Wireshark;
-    python main.py list      – показать сценарии и порты.
+    python main.py list      – показать сценарии и порты;
+    python main.py dump F --stream N – шестнадцатеричный дамп данных потока N.
 
 Примеры:
     python main.py run
@@ -34,6 +35,39 @@ def _write_reports(pcap: str, out_dir: str) -> None:
     print(f"\nОтчёты: {os.path.join(out_dir, 'report.md')}, {os.path.join(out_dir, 'report.json')}")
 
 
+def _dump(pcap: str, stream_index: int, limit: int) -> None:
+    """Выводит полезную нагрузку сегментов TCP-потока в шестнадцатеричном виде.
+
+    Формат аналогичен панели байтов Wireshark: смещение, 16 байт в
+    шестнадцатеричной записи и их представление в ASCII.
+    Аргументы:
+        pcap: путь к файлу захвата;
+        stream_index: номер потока (как tcp.stream в Wireshark);
+        limit: максимальное число выводимых сегментов с данными.
+    """
+    from stand.analysis.streams import build_streams
+    from stand.pcap import read_tcp_segments
+
+    segments = read_tcp_segments(pcap)
+    streams = build_streams(segments)
+    st = streams[stream_index]
+    ends = {st.client, st.server}
+    shown = 0
+    for no, seg in enumerate(segments, start=1):
+        if not seg.payload or {(seg.src, seg.sport), (seg.dst, seg.dport)} != ends:
+            continue
+        print(f"Кадр {no}: {seg.src}:{seg.sport} → {seg.dst}:{seg.dport}, данных {len(seg.payload)} байт")
+        for off in range(0, len(seg.payload), 16):
+            chunk = seg.payload[off:off + 16]
+            hexpart = " ".join(f"{b:02x}" for b in chunk)
+            text = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+            print(f"  {off:04x}  {hexpart:<47}  {text}")
+        print()
+        shown += 1
+        if shown >= limit:
+            break
+
+
 def main(argv: list[str] | None = None) -> int:
     """Разбирает аргументы командной строки и выполняет команду."""
     parser = argparse.ArgumentParser(description="Стенд исследования протоколов Windows с Wireshark")
@@ -47,6 +81,10 @@ def main(argv: list[str] | None = None) -> int:
     p_an.add_argument("pcap")
     p_an.add_argument("--out", default="output")
     sub.add_parser("list", help="показать сценарии и порты")
+    p_dump = sub.add_parser("dump", help="шестнадцатеричный дамп данных TCP-потока")
+    p_dump.add_argument("pcap")
+    p_dump.add_argument("--stream", type=int, required=True, help="номер потока (tcp.stream)")
+    p_dump.add_argument("--limit", type=int, default=4, help="число сегментов (по умолчанию 4)")
     args = parser.parse_args(argv)
 
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -58,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
             s = config.SERVICES[name]
             print(f"{name:<15}{s.protocol:<22}{s.real_port:>8}{s.proxy_port:>8}{s.virtual_port:>8}  "
                   f"{'да' if s.tls else 'нет'}")
+        return 0
+    if args.cmd == "dump":
+        _dump(args.pcap, args.stream, args.limit)
         return 0
     if args.cmd == "analyze":
         _write_reports(args.pcap, args.out)
