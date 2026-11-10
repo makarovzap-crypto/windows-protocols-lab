@@ -67,11 +67,10 @@ windows-protocols-lab/
 
 ## Пошаговая установка и запуск
 
-### Шаг 1. Получение проекта
+### Шаг 1. Клонирование проекта
 
-Распакуйте архив или скопируйте каталог `stand` и перейдите в него:
-
-    cd stand
+    git clone https://github.com/makarovzap-crypto/windows-protocols-lab.git
+    cd windows-protocols-lab
 
 ### Шаг 2. Установка зависимостей
 
